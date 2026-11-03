@@ -1,0 +1,39 @@
+# India forest SOC-fire pipeline configuration (v1 pilots)
+project: india-forest-soc-fire
+crs: "EPSG:32645"          # UTM 45N for Odisha; Uttarakhand uses EPSG:32644 (set per region)
+regions:
+  odisha_similipal:
+    crs: "EPSG:32645"
+    bbox_wgs84: [85.9, 21.3, 86.8, 22.2]       # approximate, refine with reserve boundary
+    biome: tropical_moist_deciduous
+  uttarakhand:
+    crs: "EPSG:32644"
+    bbox_wgs84: [77.5, 28.7, 81.1, 31.5]
+    biome: himalayan_subtropical_temperate
+    fire_year: 2022
+depths_cm: [[0, 30], [30, 100], [0, 100]]
+harmonize:
+  model: jobbagy_jackson   # cumulative fraction Y = 1 - beta**d
+  beta_by_biome: true
+  min_profile_depth_cm: 50
+cv:
+  outer_folds: 5
+  inner_folds: 3
+  schemes: [random_kfold, hex_block]
+  hex_diameters_km: [25, 50, 100]
+  seed: 42
+models: [random_forest, xgboost, quantile_rf]
+uncertainty:
+  bootstrap_n: 100
+  qrf_quantiles: [0.05, 0.5, 0.95]
+covariates:
+  climate: [era5land_mat, era5land_map, imd_rain_monsoon_fraction, aridity, pet]
+  vegetation: [ndvi_max, ndvi_min, ndwi_dry, nbr_prefire]
+  terrain: [elevation, slope, aspect, twi]
+  landcover: [esa_worldcover, nrsc_lulc, tree_cover]
+  soil: [hwsd_soil_class]
+  fire: [mcd64_burn_count, firms_hotspot_density, dnbr_2022]
+paths:
+  raw: data/raw
+  derived: data/derived
+  outputs: outputs
