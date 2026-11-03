@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below. Pre-release scaffold; no DOI yet."
+title: "india-forest-soc-fire: depth-harmonised soil organic carbon mapping for Indian forests linked to wildfire"
+authors:
+  - family-names: "Shyam Sunder"
+    given-names: "M.S."
+    affiliation: "National Institute of Technology Rourkela"
+version: 0.0.1
+date-released: 2026-11-03
+license: MIT
+repository-code: "https://github.com/murushyam/india-forest-soc-fire"
+references:
+  - type: software
+    title: "madagascar-soc-harmonized-mapping"
+    url: "https://github.com/antsaro/madagascar-soc-harmonized-mapping"
+  - type: article
+    title: "The vertical distribution of soil organic carbon and its relation to climate and vegetation"
+    authors: [{family-names: Jobbágy, given-names: Esteban G.}, {family-names: Jackson, given-names: Robert B.}]
+    journal: "Ecological Applications"
+    year: 2000
