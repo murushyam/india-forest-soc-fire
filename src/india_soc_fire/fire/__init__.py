@@ -1,12 +1,40 @@
-"""Fire-SOC nexus (STUB): pre-fire SOC stocks, dNBR-based combustion-loss classes,
-1-5 yr recovery. Class thresholds will follow standard dNBR severity bins
-(Key & Benson) and are NOT yet calibrated for Indian forests.
-"""
-DNBR_CLASSES = {"unburned": (-0.1, 0.1), "low": (0.1, 0.27), "moderate_low": (0.27, 0.44),
-                "moderate_high": (0.44, 0.66), "high": (0.66, 2.0)}
+"""Fire-SOC nexus: burn severity calibration, paired combustion loss, and 1-5 yr recovery."""
+from .combustion_loss import (
+    DEFAULT_MATCH_COLS,
+    SEVERITY_ORDER,
+    estimate_paired_combustion_loss,
+)
+from .recovery import (
+    fit_postfire_recovery_trajectory,
+    recovery_curve_model,
+    simulate_biome_recovery_chronosequence,
+    summarize_local_postfire_flux_recovery,
+)
+from .severity import (
+    BIOME_DNBR_CLASSES,
+    DNBR_CLASSES,
+    apply_phenology_offset,
+    classify_burn_severity,
+    compute_dnbr,
+    compute_rbr,
+    compute_rdnbr,
+    dnbr_class,
+)
 
-def dnbr_class(value: float) -> str:
-    for k, (lo, hi) in DNBR_CLASSES.items():
-        if lo <= value < hi:
-            return k
-    return "enhanced_regrowth" if value < -0.1 else "high"
+__all__ = [
+    "BIOME_DNBR_CLASSES",
+    "DEFAULT_MATCH_COLS",
+    "DNBR_CLASSES",
+    "SEVERITY_ORDER",
+    "apply_phenology_offset",
+    "classify_burn_severity",
+    "compute_dnbr",
+    "compute_rbr",
+    "compute_rdnbr",
+    "dnbr_class",
+    "estimate_paired_combustion_loss",
+    "fit_postfire_recovery_trajectory",
+    "recovery_curve_model",
+    "simulate_biome_recovery_chronosequence",
+    "summarize_local_postfire_flux_recovery",
+]

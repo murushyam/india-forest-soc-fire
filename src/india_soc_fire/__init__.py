@@ -1,2 +1,3 @@
-"""India forest SOC-fire: depth-harmonised SOC mapping linked to wildfire."""
-__version__ = "0.0.1"
+"""india_soc_fire: Harmonised multi-depth SOC mapping and fire-impact modelling for Indian forest biomes."""
+
+__version__ = "1.0.0"
