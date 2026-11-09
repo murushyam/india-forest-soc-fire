@@ -42,6 +42,9 @@ def regression_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> dict[str, floa
     }
 
 
+compute_all_metrics = regression_metrics
+
+
 def interval_metrics(
     y_true: np.ndarray,
     q_low: np.ndarray,

@@ -82,8 +82,12 @@ def compute_pdp_1d(
     feature: str | int,
     feature_names: Sequence[str] | None = None,
     grid_resolution: int = 25,
+    grid_points: int | None = None,
 ) -> pd.DataFrame:
     """Compute 1D Partial Dependence Plot (PDP) mean and ICE standard deviation."""
+    if grid_points is not None:
+        grid_resolution = grid_points
+
     if isinstance(X, pd.DataFrame):
         f_names = list(X.columns)
         X_arr = X.to_numpy(dtype=float)
@@ -102,21 +106,31 @@ def compute_pdp_1d(
 
     pdp_mean: list[float] = []
     ice_sd: list[float] = []
+    ice_q10: list[float] = []
+    ice_q90: list[float] = []
     for g_val in grid:
         X_mod = X_arr.copy()
         X_mod[:, f_idx] = g_val
         preds = np.asarray(model.predict(X_mod), dtype=float)
         pdp_mean.append(float(np.mean(preds)))
         ice_sd.append(float(np.std(preds, ddof=1)) if preds.size > 1 else 0.0)
+        ice_q10.append(float(np.percentile(preds, 10)) if preds.size > 0 else float(np.mean(preds)))
+        ice_q90.append(float(np.percentile(preds, 90)) if preds.size > 0 else float(np.mean(preds)))
 
     return pd.DataFrame(
         {
             "feature": f_label,
             "grid_value": grid,
+            "feature_value": grid,
             "pdp_mean": pdp_mean,
             "ice_sd": ice_sd,
+            "ice_q10": ice_q10,
+            "ice_q90": ice_q90,
         }
     )
+
+
+compute_partial_dependence_1d = compute_pdp_1d
 
 
 def compute_aoa(

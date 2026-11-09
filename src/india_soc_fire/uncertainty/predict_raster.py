@@ -36,7 +36,26 @@ def predict_soc_raster_stack(
     weights = np.array([weight_map.get(b, 1.0) for b in stack.band_names], dtype=float)
 
     # Flatten raster in row chunks to bound memory usage
-    out_keys = ("mean", "sd", "cv", "q05", "q50", "q95", "piw90", "rpiw90", "di", "aoa_mask")
+    out_keys = (
+        "mean",
+        "sd",
+        "cv",
+        "q05",
+        "q50",
+        "q95",
+        "piw90",
+        "rpiw90",
+        "di",
+        "aoa_mask",
+        "soc_mean",
+        "soc_sd",
+        "soc_cv",
+        "soc_q05",
+        "soc_q50",
+        "soc_q95",
+        "soc_piw90",
+        "soc_rpiw90",
+    )
     maps = {k: np.empty((h, w), dtype=np.float32) for k in out_keys}
 
     for r0 in range(0, h, chunk_rows):
@@ -66,9 +85,13 @@ def predict_soc_raster_stack(
 
         rc = r1 - r0
         for k in ("mean", "sd", "cv"):
-            maps[k][r0:r1, :] = boot_res[k].reshape(rc, w).astype(np.float32)
+            arr = boot_res[k].reshape(rc, w).astype(np.float32)
+            maps[k][r0:r1, :] = arr
+            maps[f"soc_{k}"][r0:r1, :] = arr
         for k in ("q05", "q50", "q95", "piw90", "rpiw90"):
-            maps[k][r0:r1, :] = qrf_res[k].reshape(rc, w).astype(np.float32)
+            arr = qrf_res[k].reshape(rc, w).astype(np.float32)
+            maps[k][r0:r1, :] = arr
+            maps[f"soc_{k}"][r0:r1, :] = arr
         maps["di"][r0:r1, :] = np.asarray(aoa_res["di"], dtype=np.float32).reshape(rc, w)
         maps["aoa_mask"][r0:r1, :] = np.asarray(aoa_res["aoa_mask"], dtype=np.float32).reshape(rc, w)
 

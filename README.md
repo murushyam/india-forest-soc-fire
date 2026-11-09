@@ -1,43 +1,58 @@
-# India Forest Soil Organic Carbon & Fire — Harmonised Multi-Depth Mapping (v1.0.0)
+# India Forest Soil Organic Carbon & Fire — Physics-Informed & Causal Multi-Depth Mapping (v2.0.0)
 
-**Status:** v1.0.0 — complete multi-depth Soil Organic Carbon (SOC) harmonisation, honest spatial block cross-validation, uncertainty quantification, and post-fire SOC combustion-loss & 1–5 year recovery modelling across fire-prone Indian forest biomes.
+**Status:** v2.0.0 — Core Python package for multi-depth Soil Organic Carbon (SOC) harmonisation, variogram-guided spatial block cross-validation, multidimensional landscape heterogeneity, physics-informed pedogenesis & thermal skin-depth solvers, Double-Negative-Control DML causal inference, and CMIP6 pyrogenic tipping-point modeling across Indian and global fire-prone forest biomes.
 
-This repository implements an end-to-end, reproducible Digital Soil Mapping (DSM) and Fire–SOC nexus pipeline adapted to Indian forest types, monsoon climatology, and fire regimes.
+> **Pre-Publication Notice:** The full research manuscript, high-resolution cartographic figure atlases, and complete empirical benchmark tables are currently under peer-review preparation and remain embargoed until formal journal publication. This repository provides the core mathematical, physical, causal, and geostatistical software modules and unit test suites.
 
-## Scientific Scope
+---
 
-1. **Multi-depth SOC stock mapping** (`0–30`, `30–100`, `0–100 cm`, in $\text{Mg C ha}^{-1}$) across two fire-prone Indian forest pilot landscapes:
-   - **Similipal Biosphere Reserve, Odisha** (`EPSG:32645`, tropical moist deciduous Sal *Shorea robusta* forest; recurrent Feb–May dry-season surface fires).
-   - **Uttarakhand forest divisions** (`EPSG:32644`, Garhwal & Kumaun subtropical *Pinus roxburghii* Chir pine and temperate *Quercus leucotrichophora* Banj oak forests; peak fire season Apr–Jun).
-2. **Biome-Calibrated Depth Harmonisation** ([`src/india_soc_fire/harmonize/`](file:///i:/tele/SOC%20India/src/india_soc_fire/harmonize/__init__.py)) via the Jobbágy & Jackson (2000) cumulative exponential model $Y(d) = 1 - \beta^d$, with $\beta$ recalibrated per Indian forest biome on profiles $\ge 50\text{ cm}$ and benchmarked against mass-preserving equal-area splines (Bishop et al., 1999; Malone et al., 2009).
-3. **Honest Spatial Validation** ([`src/india_soc_fire/cv/`](file:///i:/tele/SOC%20India/src/india_soc_fire/cv/__init__.py), [`src/india_soc_fire/models/nested_cv.py`](file:///i:/tele/SOC%20India/src/india_soc_fire/models/nested_cv.py)) comparing standard random $K$-fold CV against variogram-guided hexagonal spatial block CV (`25 km`, `50 km`, `100 km`) in a nested $5\times 3$ design across Random Forest (`rf`), XGBoost (`xgb`), and Quantile Regression Forest (`qrf`).
-4. **Dual Spatial Uncertainty & Area of Applicability** ([`src/india_soc_fire/uncertainty/`](file:///i:/tele/SOC%20India/src/india_soc_fire/uncertainty/__init__.py)) producing spatial-block bootstrap `mean`, `SD`, and `CV` rasters alongside QRF 90% prediction intervals ($q_{0.05}, q_{0.50}, q_{0.95}$, $\text{PICP}_{90}$) and Meyer & Pebesma (2021) Area of Applicability (`AOA`) masks.
-5. **Fire–SOC Nexus** ([`src/india_soc_fire/fire/`](file:///i:/tele/SOC%20India/src/india_soc_fire/fire/__init__.py)) coupling pre-fire SOC stock baselines with biome-calibrated spectral burn severity ($\text{dNBR}$, $\text{RdNBR}$, $\text{RBR}$ with phenology offset correction), covariate-matched paired topsoil (`0–30 cm`) combustion loss estimation (with `30–100 cm` subsoil falsification controls), and 1–5 yr post-fire recovery trajectories linked with 2021–2025 $\text{GPP}$, $\text{uWUE}$, and turbulent heat flux ($\text{SH}/\text{LH}$) time series.
+## Key Scientific Modules
 
-## Repository Layout
+1. **Biome-Calibrated Depth Harmonisation (`src/india_soc_fire/harmonize/`)**
+   - Recalibrates the Jobbágy & Jackson (2000) vertical recession parameter $\beta_b$ ($Y(d) = 1 - \beta_b^d$) across Indian forest biomes (*Shorea robusta* Sal, *Pinus roxburghii* Chir pine, *Quercus leucotrichophora* Banj oak) alongside shape-preserving monotone cubic Hermite (PCHIP) equal-area splines (`0–30 cm`, `30–100 cm`, `0–100 cm`).
+2. **Variogram-Guided Spatial Block Cross-Validation & Conformal Uncertainty (`src/india_soc_fire/cv/`, `models/`, `uncertainty/`, `metrics.py`)**
+   - Empirical Matheron semivariogram fitting, nested hexagonal spatial block cross-validation (`25, 50, 100 km`), Quantile Regression Forests (`QRF`), Dissimilarity-Index-weighted Conformalized Spatial Quantile Regression (`CSQR`), Meyer–Pebesma Area of Applicability (`AOA`), scale-normalized asymmetric LinEx loss ($\mathcal{L}_{\text{asym}}$), and non-negative / discrete domain support projections ($\Pi_{[0,\infty)}, \Pi_{\mathbb{N}_0}$).
+3. **Multidimensional Landscape Heterogeneity & Land-Cover Proportion Interactions (`src/india_soc_fire/heterogeneity/`)**
+   - Extends Bae et al. (2026) into the 3D pedosphere across four orthogonal dimensions (**Horizontal Compositional** $H'_{\text{LC}}$, **Horizontal Configurational** $\text{ED}_{\text{LC}}, \text{ED}_{\text{burn}}$, **Vertical Pedological** $\beta_b$ & subsoil share, and **Temporal Pyric/Hydrological** $T_{\text{fire}}, \Delta\text{NDVI}, \text{EF}$), Kaiser Varimax-rotated PCA, centered land-cover proportion interactions ($P_{\text{broadleaf}}, P_{\text{pine}}$), and 6-equation Piecewise Structural Equation Modeling (Shipley's d-separation test).
+4. **Frontier Physics-Informed Pedogenesis PDE, Three-Pool Fractionation & Monsoon Erosion (`src/india_soc_fire/advanced/`)**
+   - **1D Semi-Infinite Fourier Thermal Skin-Depth Solver (`compute_fourier_thermal_skin_profile`)**: Solves $T(z,\tau) = T_0 + (T_{\text{surf}} - T_0)\operatorname{erfc}(z / z_\tau)$ ($z_\tau = 2\sqrt{\kappa_T\tau}$), establishing physical thermal insulation at $30\text{ cm}$ depth ($\Delta T < 0.01^\circ\text{C}$) as a formal Negative Control Outcome (`NCO`).
+   - **Continuous Vertical Advection–Diffusion–Reaction Pedogenesis PDE (`solve_continuous_advection_diffusion_soc_profile`)**: Couples endogeic bioturbation ($D_{\text{bio}}$), monsoon clay/DOC illuviation ($v_{\text{illuv}}$), root allometry, and Arrhenius $Q_{10}$ respiration.
+   - **Three-Pool ($\text{POM}/\text{MAOM}/\text{PyC}$) Functional Fractionation & Monsoon Hillslope Erosion Routing (`partition_soc_into_pom_maom_pyc`, `compute_postfire_monsoon_erosion_routing`)**: Quantifies the monsoonal *"Subsoil $\text{PyC}$ Illuviation Pump"* and partitions post-fire topsoil carbon loss between atmospheric volatilization, southwest monsoon sheetwash erosion, and downslope colluvial burial.
+5. **Pan-India (16 Champion & Seth Biomes) & Global Scaling with CMIP6 Tipping Points (`src/india_soc_fire/scaling/`, `advanced/`)**
+   - Cross-fitted Double/Debiased Machine Learning with Subsoil Negative Control Outcome (`DML-NCO`) for unconfounded heterogeneous $\widehat{\text{CATE}}(\mathbf{x})$, wall-to-wall Pan-India (`EPSG:7755`) and Global (`EPSG:8857`) spatial grid synthesis (`spatial_maps.py`), and the dimensionless **Pyrogenic Soil Carbon Tipping-Point Index ($\Pi_{\text{tip}} = 2\,t_{1/2}/\text{FRI}$)** under Historical, CMIP6 `SSP2-4.5`, and CMIP6 `SSP5-8.5` scenarios with risk-adjusted carbon credit buffer deductions ($\mathcal{B}_{\text{credit}}$).
+
+---
+
+## Repository Structure
 
 ```text
 india-forest-soc-fire/
 ├── config/
-│   └── config.yaml                  # Regions, depths, covariates, CV & fire parameters
+│   └── config.yaml                        # Regional CRS, depths, covariates & CV parameters
 ├── data/
 │   └── derived/
-│       └── published_pedons_india.csv # Curated open-access Indian forest soil profiles
+│       └── published_pedons_india.csv     # Harmonised open-access Indian forest soil profiles
 ├── docs/
-│   └── DATA_PLAN.md                 # Data sources, licensing gate & circularity rules
+│   └── DATA_PLAN.md                       # Data provenance, licensing gate & circularity rules
 ├── src/india_soc_fire/
-│   ├── cli.py                       # End-to-end CLI pipeline runner
-│   ├── config.py                    # YAML config loader
-│   ├── data/                        # WoSIS & published pedon loaders, QC, Walkley-Black, BD PTF
-│   ├── harmonize/                   # Jobbágy-Jackson biome β fit & equal-area spline
-│   ├── covariates/                  # Local I:\tele raster/flux ingestion, terrain (TWI), GEE stack
-│   ├── cv/                          # Hexagonal spatial blocks, empirical variogram & Moran's I
-│   ├── models/                      # RF, XGB, QRF, 5x3 nested CV, TreeSHAP, PDP, and AOA
-│   ├── uncertainty/                 # Spatial-block bootstrap, QRF 90% intervals, GeoTIFF writer, benchmarks
-│   ├── fire/                        # dNBR/RdNBR/RBR, paired combustion loss, 1-5 yr recovery
-│   └── viz/                         # Publication figures (depth curves, CV gap, SHAP, fire recovery)
-└── tests/                           # Comprehensive pytest suite across all 6 phases
+│   ├── cli.py                             # End-to-end CLI pipeline runner
+│   ├── config.py                          # YAML configuration loader
+│   ├── metrics.py                         # LinEx loss, [0, inf)/N_0 projections, conformal & Wilcoxon
+│   ├── data/                              # Pedon loaders, QC, Walkley-Black & bulk density PTFs
+│   ├── harmonize/                         # Jobbágy-Jackson biome beta & PCHIP equal-area splines
+│   ├── covariates/                        # Multi-sensor raster/flux ingestion & terrain derivatives
+│   ├── cv/                                # Hexagonal spatial blocks, variograms & Moran's I
+│   ├── models/                            # RF, XGB, QRF, nested spatial CV, TreeSHAP, PDP & AOA
+│   ├── uncertainty/                       # Spatial-block bootstrap, QRF intervals & GeoTIFF writer
+│   ├── fire/                              # dNBR/RdNBR/RBR, paired combustion loss & recovery kinetics
+│   ├── heterogeneity/                     # Bae et al. (2026) 4D heterogeneity, Varimax PCA & Piecewise SEM
+│   ├── scaling/                           # Pan-India 16-biome & Global scaling, DML-NCO, CSQR & spatial grids
+│   ├── advanced/                          # Fourier thermal skin-depth, pedogenesis PDE, POM/MAOM/PyC & CMIP6 Pi_tip
+│   └── viz/                               # Diagnostic plotting utilities
+└── tests/                                 # Automated pytest verification suite
 ```
+
+---
 
 ## Quickstart
 
@@ -47,6 +62,6 @@ pytest -v
 python -m india_soc_fire.cli --config config/config.yaml --output-dir outputs
 ```
 
-## Licensing & Attribution
+## License
 
-Code: MIT. Data sources carry their own licences — see [`docs/DATA_PLAN.md`](file:///i:/tele/SOC%20India/docs/DATA_PLAN.md). Conceptual debt to [`antsaro/madagascar-soc-harmonized-mapping`](https://github.com/antsaro/madagascar-soc-harmonized-mapping) is acknowledged for the depth-harmonisation + spatial-block CV + bootstrap/QRF uncertainty architecture.
+Code is released under the MIT / Apache-2.0 License. Underlying satellite and soil survey datasets carry their respective open-data licenses as documented in [`docs/DATA_PLAN.md`](docs/DATA_PLAN.md).

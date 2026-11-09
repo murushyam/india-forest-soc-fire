@@ -1,30 +1,34 @@
 """Mass-preserving equal-area spline depth harmonisation benchmark (Bishop et al., 1999; Malone et al., 2009)."""
 from __future__ import annotations
 
-from typing import Iterable, Sequence
+from typing import Any, Iterable, Sequence
 import numpy as np
+import pandas as pd
 from scipy.interpolate import PchipInterpolator
 
 
 def equal_area_spline_harmonize(
-    horizon_tops_cm: Sequence[float],
-    horizon_bottoms_cm: Sequence[float],
-    horizon_stocks_mg_ha: Sequence[float],
+    horizon_tops_cm: Sequence[float] | pd.DataFrame,
+    horizon_bottoms_cm: Sequence[float] | None = None,
+    horizon_stocks_mg_ha: Sequence[float] | None = None,
     target_intervals_cm: Iterable[tuple[int, int]] = ((0, 30), (30, 100), (0, 100)),
-) -> dict[tuple[int, int], float]:
+    max_grid_cm: float | None = None,
+) -> dict[Any, Any]:
     """Mass-preserving monotonic cubic Hermite (PCHIP) cumulative mass spline.
 
-    Because the cumulative SOC mass function M(z) = int_0^z rho_C(u) du is
-    strictly non-decreasing and exactly known at horizon boundaries z_0=0, z_1, ..., z_n,
-    interpolating M(z) with a shape-preserving monotonic spline (Fritsch & Carlson, 1980)
-    guarantees:
-      1. Exact mass preservation over every measured horizon [top_k, bottom_k],
-      2. Non-negative SOC density dM/dz >= 0 at every depth z,
-      3. Exact additivity across target intervals: M(0, 30) + M(30, 100) = M(0, 100).
+    Supports either:
+    1. horizon_tops_cm, horizon_bottoms_cm, horizon_stocks_mg_ha sequences
+    2. horizon_tops_cm as a DataFrame containing 'top_cm', 'bottom_cm', 'stock_mg_ha'
     """
-    tops = np.asarray(horizon_tops_cm, dtype=float)
-    bottoms = np.asarray(horizon_bottoms_cm, dtype=float)
-    stocks = np.asarray(horizon_stocks_mg_ha, dtype=float)
+    if isinstance(horizon_tops_cm, pd.DataFrame):
+        df = horizon_tops_cm
+        tops = df["top_cm"].to_numpy(dtype=float)
+        bottoms = df["bottom_cm"].to_numpy(dtype=float)
+        stocks = df["stock_mg_ha"].to_numpy(dtype=float)
+    else:
+        tops = np.asarray(horizon_tops_cm, dtype=float)
+        bottoms = np.asarray(horizon_bottoms_cm, dtype=float)
+        stocks = np.asarray(horizon_stocks_mg_ha, dtype=float)
     if not (tops.size == bottoms.size == stocks.size) or tops.size == 0:
         raise ValueError("Horizon arrays must be non-empty and equal length")
 
@@ -57,7 +61,9 @@ def equal_area_spline_harmonize(
         extra = (slope_end / decay_k) * (1.0 - np.exp(-decay_k * (z - d_max)))
         return float(uniq_m[-1] + extra)
 
-    return {
-        (lo, hi): max(0.0, eval_cum(float(hi)) - eval_cum(float(lo)))
-        for (lo, hi) in target_intervals_cm
-    }
+    out: dict[Any, Any] = {}
+    for (lo, hi) in target_intervals_cm:
+        val = max(0.0, eval_cum(float(hi)) - eval_cum(float(lo)))
+        out[(lo, hi)] = val
+        out[f"{lo}_{hi}"] = {"soc_stock_mg_ha": val}
+    return out

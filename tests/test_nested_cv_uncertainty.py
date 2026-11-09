@@ -3,7 +3,12 @@ from __future__ import annotations
 
 import numpy as np
 
-from india_soc_fire.cv import empirical_variogram, fit_variogram_range, morans_i
+from india_soc_fire.cv import (
+    compute_empirical_variogram,
+    empirical_variogram,
+    fit_variogram_range,
+    morans_i,
+)
 from india_soc_fire.models import build_model
 from india_soc_fire.models.interpret import compute_aoa, compute_pdp_1d, compute_shap_importance
 from india_soc_fire.models.metrics import interval_metrics, lins_ccc, regression_metrics
@@ -19,8 +24,16 @@ def test_variogram_and_morans_i() -> None:
 
     emp = empirical_variogram(x_m, y_m, vals, max_lag_m=100_000.0, n_bins=8)
     assert len(emp) >= 3
+    emp_lags = compute_empirical_variogram(x_m, y_m, vals, max_lag_m=100_000.0, n_lags=8)
+    assert len(emp_lags) == len(emp)
+
     v_fit = fit_variogram_range(x_m, y_m, vals, max_lag_m=100_000.0)
     assert v_fit["recommended_block_km"] in {25.0, 50.0, 100.0}
+    assert "range_param_m" in v_fit
+    assert np.isclose(v_fit["range_param_m"], v_fit["effective_range_m"] / 3.0)
+
+    v_fit_lags = fit_variogram_range(x_m, y_m, vals, max_lag_m=100_000.0, n_lags=8)
+    assert "range_param_m" in v_fit_lags
 
     mi = morans_i(x_m, y_m, vals - np.mean(vals), bandwidth_m=45_000.0)
     assert -1.0 <= mi["morans_i"] <= 1.5

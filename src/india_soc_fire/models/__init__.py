@@ -107,3 +107,15 @@ def build_model(name: str, **params: Any) -> Any:
         defaults.update(params)
         return ForestQuantileRegressor(**defaults)
     raise ValueError(f"Unknown model '{name}'. Choose from: rf, xgb, qrf.")
+
+
+from .metrics import compute_all_metrics, interval_metrics, lins_ccc, regression_metrics
+
+__all__ = [
+    "ForestQuantileRegressor",
+    "build_model",
+    "compute_all_metrics",
+    "interval_metrics",
+    "lins_ccc",
+    "regression_metrics",
+]

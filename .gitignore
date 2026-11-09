@@ -7,3 +7,17 @@ data/derived/*
 outputs/
 *.tif
 .venv/
+
+# Embargoed pre-publication manuscript, figures, tables & local agent workspaces
+manuscript/
+scripts/
+graphify-out/
+.agent/
+.agents/
+*.pdf
+PROJECT.md
+tests/run_tests_m1.py
+tests/test_challenger_*.py
+tests/test_manuscript_adversarial.py
+tests/test_milestone1_empirical_adversarial.py
+tests/test_variogram_stress_harness.py

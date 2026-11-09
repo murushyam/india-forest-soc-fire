@@ -69,10 +69,47 @@ def load_odisha_flux_timeseries(
             df = pd.read_csv(f_gpp)
             df["year"] = yr
             df["region"] = "odisha_similipal"
+            f_shlh = base / f"Odisha_BurnedArea_SH_LH_ET_daily_{yr}.csv"
+            if f_shlh.exists():
+                shlh = pd.read_csv(f_shlh)
+                if "SH" in shlh.columns and "LH" in shlh.columns:
+                    sh_mean = float(pd.to_numeric(shlh["SH"], errors="coerce").mean())
+                    lh_mean = float(pd.to_numeric(shlh["LH"], errors="coerce").mean())
+                    df["SH"] = sh_mean
+                    df["LH"] = lh_mean
+                    denom = sh_mean + lh_mean
+                    df["EF"] = lh_mean / denom if denom > 0 else float("nan")
+                    df["bowen_ratio"] = sh_mean / lh_mean if lh_mean > 0 else float("nan")
             gpp_frames.append(df)
     if not gpp_frames:
         return pd.DataFrame()
     return pd.concat(gpp_frames, ignore_index=True)
+
+
+def load_odisha_daily_turbulent_fluxes(
+    tele_dir: str | Path = DEFAULT_TELE_DIR,
+    years: tuple[int, ...] = (2021, 2022, 2023, 2024, 2025),
+) -> pd.DataFrame:
+    """Load daily land-cover stratified SH, LH, ET, EF, and Bowen ratio over Odisha burned areas."""
+    base = Path(tele_dir)
+    frames: list[pd.DataFrame] = []
+    for yr in years:
+        f_shlh = base / f"Odisha_BurnedArea_SH_LH_ET_daily_{yr}.csv"
+        if f_shlh.exists():
+            df = pd.read_csv(f_shlh)
+            for col in ("ET", "LH", "SH"):
+                if col in df.columns:
+                    df[col] = pd.to_numeric(df[col], errors="coerce")
+            if "SH" in df.columns and "LH" in df.columns:
+                denom = (df["SH"] + df["LH"]).replace(0, float("nan"))
+                df["EF"] = df["LH"] / denom
+                df["bowen_ratio"] = df["SH"] / df["LH"].replace(0, float("nan"))
+            df["year"] = yr
+            df["region"] = "odisha_similipal"
+            frames.append(df)
+    if not frames:
+        return pd.DataFrame()
+    return pd.concat(frames, ignore_index=True)
 
 
 def load_uttarakhand_flux_timeseries(
