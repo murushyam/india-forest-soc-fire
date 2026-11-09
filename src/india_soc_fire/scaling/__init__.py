@@ -11,6 +11,7 @@ from india_soc_fire.scaling.pan_india_global import (
 from india_soc_fire.scaling.spatial_maps import (
     generate_global_spatial_grid,
     generate_pan_india_spatial_grid,
+    load_soi_india_polygons,
 )
 
 __all__ = [
@@ -21,4 +22,5 @@ __all__ = [
     "generate_pan_india_and_global_tiles",
     "generate_pan_india_spatial_grid",
     "generate_global_spatial_grid",
+    "load_soi_india_polygons",
 ]

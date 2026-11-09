@@ -123,13 +123,66 @@ GLOBAL_CONTINENT_POLYS: List[List[Tuple[float, float]]] = [
 ]
 
 
+def load_soi_india_polygons() -> Tuple[List[List[Tuple[float, float]]], List[List[Tuple[float, float]]]]:
+    """Load official Survey of India (SOI) 36-State/UT composite national & state polygons.
+
+    Returns
+    -------
+    outer_polys : list of list of (lon, lat)
+        Dissolved outer national boundary rings (Mainland India including full
+        Jammu & Kashmir, Ladakh up to 37.08°N, Arunachal Pradesh, Sikkim, Gujarat,
+        plus Andaman & Nicobar and Lakshadweep archipelagos).
+    state_polys : list of list of (lon, lat)
+        Individual exterior rings for all 36 States and Union Territories.
+    """
+    import json
+
+    soi_path = Path(__file__).resolve().parents[1] / "data" / "india_states_soi.geojson"
+    if not soi_path.exists():
+        fallback = [INDIA_MAINLAND_POLY, ANDAMAN_POLY]
+        return fallback, fallback
+
+    try:
+        from shapely.geometry import Polygon, shape
+        from shapely.ops import unary_union
+
+        with open(soi_path, "r", encoding="utf-8") as f:
+            gj = json.load(f)
+
+        geoms = [shape(feat["geometry"]).buffer(0) for feat in gj["features"]]
+        state_polys: List[List[Tuple[float, float]]] = []
+        for g in geoms:
+            parts = [g] if g.geom_type == "Polygon" else list(g.geoms)
+            for p in parts:
+                if p.area > 0.0005:
+                    state_polys.append([(float(x), float(y)) for x, y in p.exterior.coords])
+
+        # Dissolve internal state borders to obtain a watertight outer national boundary
+        u_clean = unary_union([g.buffer(0.005) for g in geoms]).buffer(-0.005)
+        u_parts = [u_clean] if u_clean.geom_type == "Polygon" else list(u_clean.geoms)
+        outer_polys: List[List[Tuple[float, float]]] = []
+        for p in sorted(u_parts, key=lambda geom: geom.area, reverse=True):
+            if p.area > 0.0008:
+                clean_ext = Polygon(p.exterior)
+                outer_polys.append([(float(x), float(y)) for x, y in clean_ext.exterior.coords])
+
+        if outer_polys:
+            return outer_polys, state_polys
+    except Exception:
+        pass
+
+    fallback = [INDIA_MAINLAND_POLY, ANDAMAN_POLY]
+    return fallback, fallback
+
+
 def _load_gshhs_land_polygons(min_area: float = 0.25) -> List[List[Tuple[float, float]]]:
     """Load real-world continental & island polygons from Cartopy GSHHS_c_L1 shapefile if available."""
     import os
     import warnings
+    soi_outer, _ = load_soi_india_polygons()
     gshhs_path = r"D:\Python\Lib\site-packages\cartopy\data\shapefiles\gshhs\c\GSHHS_c_L1.shp"
     if not os.path.exists(gshhs_path):
-        return list(GLOBAL_CONTINENT_POLYS) + [INDIA_MAINLAND_POLY, SRI_LANKA_POLY]
+        return list(GLOBAL_CONTINENT_POLYS) + soi_outer + [SRI_LANKA_POLY]
     try:
         import cartopy.io.shapereader as shpreader
         with warnings.catch_warnings():
@@ -144,7 +197,7 @@ def _load_gshhs_land_polygons(min_area: float = 0.25) -> List[List[Tuple[float, 
             return polys
     except Exception:
         pass
-    return list(GLOBAL_CONTINENT_POLYS) + [INDIA_MAINLAND_POLY, SRI_LANKA_POLY]
+    return list(GLOBAL_CONTINENT_POLYS) + soi_outer + [SRI_LANKA_POLY]
 
 
 def _points_in_polygons(
@@ -201,26 +254,21 @@ def generate_pan_india_spatial_grid(
     lats = np.arange(6.5, 37.6, res_deg)
     lon2d, lat2d = np.meshgrid(lons, lats)
 
-    land_mask = _points_in_polygons(
-        lon2d, lat2d, [INDIA_MAINLAND_POLY, ANDAMAN_POLY]
-    )
-    # Refine peninsular coastline (lat < 23.2N) using exact GSHHS_c_L1 land polygons
-    gshhs_polys = _load_gshhs_land_polygons(min_area=0.15)
-    if len(gshhs_polys) > 20:
-        gshhs_mask = _points_in_polygons(lon2d, lat2d, gshhs_polys)
-        peninsula_zone = (lat2d < 22.2) & (lon2d < 88.8)
-        land_mask = np.where(peninsula_zone, land_mask & gshhs_mask, land_mask)
+    soi_outer_polys, _ = load_soi_india_polygons()
+    land_mask = _points_in_polygons(lon2d, lat2d, soi_outer_polys)
 
     # Smooth spatial basis functions representing India's major bioclimatic & topographic gradients
     # 1. Western Ghats wet evergreen / moist deciduous ridge (along lon ~ 74-76.5E, lat 8-19N)
     wg_weight = np.exp(-((lon2d - (76.8 - 0.19 * (lat2d - 8.5))) / 1.15) ** 2) * np.exp(
         -((lat2d - 13.0) / 5.5) ** 2
     )
-    # 2. Himalayan arc (NW to NE: lat increases as lon decreases from 96E to 74E)
+    # 2. Himalayan arc (NW to NE: smooth logistic tapers rather than hard bounding boxes)
     him_axis_lat = 27.6 + 0.36 * (94.0 - lon2d)
-    him_weight = np.exp(-((lat2d - him_axis_lat) / 1.75) ** 2) * (
-        (lon2d >= 73.5) & (lon2d <= 97.5) & (lat2d >= 26.5)
+    him_lon_taper = (1.0 / (1.0 + np.exp(-(lon2d - 73.2) / 0.85))) * (
+        1.0 / (1.0 + np.exp((lon2d - 97.2) / 0.85))
     )
+    him_lat_taper = 1.0 / (1.0 + np.exp(-(lat2d - 26.2) / 0.75))
+    him_weight = np.exp(-((lat2d - him_axis_lat) / 1.80) ** 2) * him_lon_taper * him_lat_taper
     # 3. North-East Hills (Assam, Meghalaya, Nagaland, Mizoram, Arunachal: lon > 89.5E, lat 22-29N)
     ne_weight = (1.0 / (1.0 + np.exp(-(lon2d - 90.2) / 0.8))) * np.exp(
         -((lat2d - 25.5) / 3.4) ** 2
@@ -280,9 +328,10 @@ def generate_pan_india_spatial_grid(
 
     # (c) Configurational Burn-Patch Edge Density ED_burn (m ha^-1)
     # Peaks in NE jhum landscapes, Central Highlands Teak/Sal, Similipal Sal, and Siwalik Pine
-    siwalik_pine = np.exp(-((lat2d - (him_axis_lat - 0.9)) / 0.9) ** 2) * (
-        (lon2d >= 75.0) & (lon2d <= 81.5)
+    siw_lon_taper = (1.0 / (1.0 + np.exp(-(lon2d - 74.2) / 0.85))) * (
+        1.0 / (1.0 + np.exp((lon2d - 81.2) / 0.85))
     )
+    siwalik_pine = np.exp(-((lat2d - (him_axis_lat - 0.9)) / 0.95) ** 2) * siw_lon_taper
     ed_burn = (
         22.0
         + 44.0 * ne_weight
@@ -341,6 +390,7 @@ def generate_pan_india_spatial_grid(
 
     # (f) CMIP6 SSP5-8.5 Pyrogenic Tipping-Point Index Pi_tip = 2 * t_half / FRI
     # Crosses 1.0 in Central India, Deccan, Siwalik Chir Pine, NE jhum, and dry Eastern Ghats
+    high_him_taper = 1.0 / (1.0 + np.exp(-(lat2d - him_axis_lat) / 0.65))
     pi_tip_ssp585 = (
         0.78
         + 1.35 * ci_weight
@@ -350,7 +400,7 @@ def generate_pan_india_spatial_grid(
         + 0.72 * eg_weight
         + 0.65 * arid_weight
         - 0.42 * wg_weight
-        - 0.35 * (him_weight * (lat2d > him_axis_lat))
+        - 0.35 * (him_weight * high_him_taper)
         + 0.06 * micro
     )
     pi_tip_ssp585 = np.clip(pi_tip_ssp585, 0.22, 2.75)
